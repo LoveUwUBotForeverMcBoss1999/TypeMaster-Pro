@@ -46,6 +46,19 @@
             line-height: 1.6;
         }
 
+        body[data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent: #4a9eff;
+            --success: #2ecc71;
+            --error: #ff6b6b;
+            --warning: #ffd93d;
+            --border: #404040;
+            --shadow: rgba(255, 255, 255, 0.1);
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -188,15 +201,20 @@
         }
 
         .text-display {
-            font-size: 1.4rem;
-            line-height: 2;
+            font-size: 1.8rem;
+            line-height: 2.2;
             margin-bottom: 20px;
-            padding: 20px;
+            padding: 25px;
             background: var(--bg-primary);
             border-radius: 8px;
             border: 2px solid var(--border);
-            min-height: 150px;
+            min-height: 200px;
             font-family: 'Courier New', monospace;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .char {
@@ -204,19 +222,25 @@
         }
 
         .char.correct {
-            background-color: rgba(39, 174, 96, 0.3);
+            background-color: rgba(39, 174, 96, 0.4);
             color: var(--success);
+            border-radius: 3px;
         }
 
         .char.incorrect {
-            background-color: rgba(231, 76, 60, 0.3);
-            color: var(--error);
+            background-color: rgba(231, 76, 60, 0.6);
+            color: var(--bg-primary);
+            border-radius: 3px;
+            font-weight: bold;
+            text-decoration: underline;
         }
 
         .char.current {
             background-color: var(--accent);
             color: white;
             animation: blink 1s infinite;
+            border-radius: 3px;
+            font-weight: bold;
         }
 
         @keyframes blink {
@@ -376,7 +400,7 @@
         }
     </style>
 </head>
-<body data-theme="light">
+<body data-theme="dark">
     <div class="container">
         <header class="header">
             <div class="logo">TypeMaster Pro</div>
@@ -523,7 +547,7 @@
         function toggleTheme() {
             const body = document.body;
             const currentTheme = body.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             body.setAttribute('data-theme', newTheme);
             showToast(`Switched to ${newTheme} theme`);
         }
@@ -566,32 +590,55 @@
 
         // Apply difficulty modifications
         function applyDifficulty(text, difficulty) {
+            // Clean the text first
+            text = text.replace(/\s+/g, ' ').trim();
+            
             switch (difficulty) {
                 case 'easy':
-                    return text.toLowerCase().replace(/[^\w\s]/g, '').substring(0, 200);
+                    return text.toLowerCase()
+                        .replace(/[^\w\s.,-]/g, '')
+                        .substring(0, 150);
                 case 'medium':
-                    return text.substring(0, 350);
+                    return text.substring(0, 250);
                 case 'hard':
-                    return text.substring(0, 500);
+                    return text.substring(0, 400);
                 default:
-                    return text;
+                    return text.substring(0, 250);
             }
         }
 
         // Display text with character highlighting
         function displayText() {
             const display = document.getElementById('textDisplay');
+            const input = document.getElementById('inputArea').value;
             let html = '';
             
             for (let i = 0; i < currentText.length; i++) {
                 let className = 'char';
-                if (i < currentIndex) {
-                    className += ' correct';
-                } else if (i === currentIndex) {
+                let char = currentText[i];
+                
+                if (i < input.length) {
+                    // Character has been typed
+                    if (input[i] === currentText[i]) {
+                        className += ' correct';
+                    } else {
+                        className += ' incorrect';
+                    }
+                } else if (i === input.length) {
+                    // Current character to type
                     className += ' current';
                 }
                 
-                html += `<span class="${className}">${currentText[i] === ' ' ? '&nbsp;' : currentText[i]}</span>`;
+                // Handle spaces and special characters
+                if (char === ' ') {
+                    char = '&nbsp;';
+                } else if (char === '\n') {
+                    char = '<br>';
+                } else {
+                    char = char.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
+                
+                html += `<span class="${className}">${char}</span>`;
             }
             
             display.innerHTML = html;
@@ -634,12 +681,12 @@
         function updateProgress(input) {
             currentIndex = input.length;
             
-            // Check for errors
+            // Reset error count for this update
+            errors = 0;
+            
+            // Count current errors
             for (let i = 0; i < input.length && i < currentText.length; i++) {
-                const inputChar = input[i];
-                const expectedChar = currentText[i];
-                
-                if (inputChar !== expectedChar) {
+                if (input[i] !== currentText[i]) {
                     errors++;
                 }
             }
@@ -648,7 +695,7 @@
             updateProgressBar();
             
             // Check if test is complete
-            if (input.length >= currentText.length) {
+            if (input.length >= currentText.length && input === currentText) {
                 endTest();
             }
         }
